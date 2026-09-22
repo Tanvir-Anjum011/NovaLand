@@ -505,7 +505,7 @@ function startOceanSound() {
   }
 }
 
-// Bind directly to canvas and window to guarantee unlock across all mobile & desktop browsers
+// Bind directly to canvas & window to guarantee unlock across all mobile & desktop browsers
 const activationEvents = ['pointerdown', 'touchstart', 'mousedown', 'click'];
 activationEvents.forEach(evt => {
   window.addEventListener(evt, startOceanSound, { passive: true });
