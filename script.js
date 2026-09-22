@@ -380,9 +380,7 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// =========================================================================
 // 🌊 MULTI-LAYER PROCEDURAL SOUND ENGINE (Zero external file dependencies)
-// =========================================================================
 let audioInitialized = false;
 let audioCtx = null;
 
