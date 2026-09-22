@@ -7,7 +7,7 @@ scene.background = new THREE.Color(sunsetSkyColor);
 scene.fog = new THREE.FogExp2(horizonFogColor, 0.0075);
 
 const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1400);
-camera.position.set(0, 11, 26);
+camera.position.set(0, 11, window.innerWidth / window.innerHeight < 1 ? 40 : 26);
 
 const renderer = new THREE.WebGLRenderer({
   canvas: canvas,
@@ -15,7 +15,7 @@ const renderer = new THREE.WebGLRenderer({
   powerPreference: 'high-performance'
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.15;
 
@@ -23,8 +23,8 @@ const controls = new THREE.OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
 controls.maxPolarAngle = Math.PI / 2.05;
-controls.minDistance = 7;
-controls.maxDistance = 55;
+controls.minDistance = 12;
+controls.maxDistance = 60;
 controls.target.set(0, 1.8, 0);
 
 const hemiLight = new THREE.HemisphereLight(0xffd1b3, 0x4a7c59, 1.0);
@@ -83,8 +83,10 @@ cloudPositions.forEach(([x, y, z, s]) => {
 });
 scene.add(cloudGroup);
 
+const isMobile = window.innerWidth < 768;
+
 const oceanDimension = 320;
-const oceanRes = 180;
+const oceanRes = isMobile ? 90 : 180;
 const oceanGeometry = new THREE.PlaneGeometry(oceanDimension, oceanDimension, oceanRes, oceanRes);
 oceanGeometry.rotateX(-Math.PI / 2);
 
@@ -236,7 +238,7 @@ boatGroup.add(createSailor(3.6, 0.85, 0, Math.PI / 2));
 boatGroup.add(createSailor(1.2, 0.85, 1.1, Math.PI / 3));
 boatGroup.add(createSailor(1.2, 0.85, -1.1, -Math.PI / 3));
 
-const wakeCount = 65;
+const wakeCount = isMobile ? 35 : 65;
 const wakeGeo = new THREE.RingGeometry(0.4, 1.8, 16);
 wakeGeo.rotateX(-Math.PI / 2);
 const wakeMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, side: THREE.DoubleSide });
@@ -250,7 +252,7 @@ for (let i = 0; i < wakeCount; i++) {
   wakeParticles.push({ mesh: mesh, life: i / wakeCount, x: 0, z: 0 });
 }
 
-const sprayCount = 45;
+const sprayCount = isMobile ? 20 : 45;
 const sprayGeo = new THREE.SphereGeometry(0.1, 6, 6);
 const sprayMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75 });
 const sprayGroup = new THREE.Group();
@@ -378,6 +380,7 @@ window.onload = function() {
 
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
+  camera.position.z = camera.aspect < 1 ? 40 : 26;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
