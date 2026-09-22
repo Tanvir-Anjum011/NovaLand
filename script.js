@@ -370,6 +370,7 @@ function animate() {
 
 window.onload = function() {
   animate();
+  startAudio();
 };
 
 window.addEventListener('resize', () => {
@@ -381,8 +382,6 @@ window.addEventListener('resize', () => {
 
 let isPlayingAudio = false;
 let audioUnlocked = false;
-const soundBtn = document.getElementById('sound-btn');
-const soundLabel = document.getElementById('sound-label');
 
 const oceanAudio = new Audio('ocean.mp3');
 oceanAudio.loop = true;
@@ -498,52 +497,15 @@ function startAudio() {
 
   oceanAudio.play().then(() => {
     isPlayingAudio = true;
-    updateSoundUI(true);
   }).catch(() => {
     if (masterOceanGain) {
       masterOceanGain.gain.cancelScheduledValues(webAudioCtx.currentTime);
       masterOceanGain.gain.linearRampToValueAtTime(0.85, webAudioCtx.currentTime + 1.5);
     }
     isPlayingAudio = true;
-    updateSoundUI(true);
   });
 }
 
-function stopAudio() {
-  oceanAudio.pause();
-  if (masterOceanGain && webAudioCtx) {
-    masterOceanGain.gain.cancelScheduledValues(webAudioCtx.currentTime);
-    masterOceanGain.gain.linearRampToValueAtTime(0.0001, webAudioCtx.currentTime + 0.8);
-  }
-  isPlayingAudio = false;
-  updateSoundUI(false);
-}
-
-function updateSoundUI(playing) {
-  if (soundLabel) soundLabel.textContent = playing ? 'Mute' : 'Sound';
-  if (soundBtn) {
-    if (playing) {
-      soundBtn.classList.add('bg-white/90', 'shadow-md');
-    } else {
-      soundBtn.classList.remove('bg-white/90', 'shadow-md');
-    }
-  }
-}
-
-function toggleAudio() {
-  if (!isPlayingAudio) {
-    startAudio();
-  } else {
-    stopAudio();
-  }
-}
-
-if (soundBtn) {
-  soundBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    toggleAudio();
-  });
-}
 
 window.addEventListener('pointerdown', function onFirstPointer() {
   if (!audioUnlocked) {
