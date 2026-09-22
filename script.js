@@ -28,7 +28,6 @@ controls.minDistance = 7;
 controls.maxDistance = 55;
 controls.target.set(0, 1.8, 0);
 
-// --- Radiant Sunset Lighting ---
 const hemiLight = new THREE.HemisphereLight(0xffd1b3, 0x4a7c59, 1.0);
 scene.add(hemiLight);
 
