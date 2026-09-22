@@ -370,6 +370,7 @@ function animate() {
 
 window.onload = function() {
   animate();
+  startOceanSound();
 };
 
 window.addEventListener('resize', () => {
@@ -380,95 +381,135 @@ window.addEventListener('resize', () => {
 });
 
 // =========================================================================
-// 🌊 ULTRA-RELIABLE MARITIME SOUND ENGINE
+// 🌊 MULTI-LAYER PROCEDURAL SOUND ENGINE (Zero external file dependencies)
 // =========================================================================
-let audioStarted = false;
+let audioInitialized = false;
 let audioCtx = null;
 
-function initAudio() {
-  if (audioStarted) return;
-  audioStarted = true;
-
-  const AudioCtx = window.AudioContext || window.webkitAudioContext;
-  audioCtx = new AudioCtx();
-
-  if (audioCtx.state === 'suspended') {
-    audioCtx.resume();
+function startOceanSound() {
+  if (audioInitialized) {
+    if (audioCtx && audioCtx.state === 'suspended') {
+      const p = audioCtx.resume();
+      if (p) p.catch(() => {});
+    }
+    return;
   }
+  audioInitialized = true;
 
-  const masterGain = audioCtx.createGain();
-  masterGain.gain.setValueAtTime(0.001, audioCtx.currentTime);
-  masterGain.gain.exponentialRampToValueAtTime(0.8, audioCtx.currentTime + 2.0);
-  masterGain.connect(audioCtx.destination);
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    audioCtx = new AudioContextClass();
 
-  // Generate pink noise
-  const bufferSize = audioCtx.sampleRate * 4;
-  const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-  const output = noiseBuffer.getChannelData(0);
-  let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
-  for (let i = 0; i < bufferSize; i++) {
-    const white = Math.random() * 2 - 1;
-    b0 = 0.99886 * b0 + white * 0.0555179;
-    b1 = 0.99332 * b1 + white * 0.0750759;
-    b2 = 0.96900 * b2 + white * 0.1538520;
-    b3 = 0.86650 * b3 + white * 0.3104856;
-    b4 = 0.55000 * b4 + white * 0.5329522;
-    b5 = -0.76160 * b5 - white * 0.0168980;
-    output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.045;
-    b6 = white * 0.115926;
+    if (audioCtx.state === 'suspended') {
+      const p = audioCtx.resume();
+      if (p) p.catch(() => {});
+    }
+
+    const masterGain = audioCtx.createGain();
+    masterGain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+    masterGain.gain.linearRampToValueAtTime(0.75, audioCtx.currentTime + 1.2);
+    masterGain.connect(audioCtx.destination);
+
+    // 5-second Pink Noise generation
+    const bufferSize = audioCtx.sampleRate * 5;
+    const noiseBuffer = audioCtx.createBuffer(2, bufferSize, audioCtx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = noiseBuffer.getChannelData(ch);
+      let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        b0 = 0.99886 * b0 + white * 0.0555179;
+        b1 = 0.99332 * b1 + white * 0.0750759;
+        b2 = 0.96900 * b2 + white * 0.1538520;
+        b3 = 0.86650 * b3 + white * 0.3104856;
+        b4 = 0.55000 * b4 + white * 0.5329522;
+        b5 = -0.76160 * b5 - white * 0.0168980;
+        data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.045;
+        b6 = white * 0.115926;
+      }
+    }
+
+    // LAYER 1: Deep Ocean Swell
+    const swellSource = audioCtx.createBufferSource();
+    swellSource.buffer = noiseBuffer;
+    swellSource.loop = true;
+
+    const swellFilter = audioCtx.createBiquadFilter();
+    swellFilter.type = 'lowpass';
+    swellFilter.frequency.setValueAtTime(160, audioCtx.currentTime);
+    swellFilter.Q.setValueAtTime(4.0, audioCtx.currentTime);
+
+    const swellLFO = audioCtx.createOscillator();
+    swellLFO.frequency.setValueAtTime(0.18, audioCtx.currentTime);
+    const swellLFOGain = audioCtx.createGain();
+    swellLFOGain.gain.setValueAtTime(90, audioCtx.currentTime);
+    swellLFO.connect(swellLFOGain);
+    swellLFOGain.connect(swellFilter.frequency);
+
+    swellSource.connect(swellFilter);
+    swellFilter.connect(masterGain);
+    swellSource.start();
+    swellLFO.start();
+
+    // LAYER 2: Breaking Crests & Hull Wash
+    const washSource = audioCtx.createBufferSource();
+    washSource.buffer = noiseBuffer;
+    washSource.loop = true;
+
+    const washFilter = audioCtx.createBiquadFilter();
+    washFilter.type = 'bandpass';
+    washFilter.frequency.setValueAtTime(650, audioCtx.currentTime);
+    washFilter.Q.setValueAtTime(1.8, audioCtx.currentTime);
+
+    const washLFO = audioCtx.createOscillator();
+    washLFO.frequency.setValueAtTime(0.35, audioCtx.currentTime);
+    const washLFOGain = audioCtx.createGain();
+    washLFOGain.gain.setValueAtTime(320, audioCtx.currentTime);
+    washLFO.connect(washLFOGain);
+    washLFOGain.connect(washFilter.frequency);
+
+    const washAmpGain = audioCtx.createGain();
+    washAmpGain.gain.setValueAtTime(0.45, audioCtx.currentTime);
+
+    washSource.connect(washFilter);
+    washFilter.connect(washAmpGain);
+    washAmpGain.connect(masterGain);
+    washSource.start();
+    washLFO.start();
+
+    // LAYER 3: Distant Sea Wind
+    const windSource = audioCtx.createBufferSource();
+    windSource.buffer = noiseBuffer;
+    windSource.loop = true;
+
+    const windFilter = audioCtx.createBiquadFilter();
+    windFilter.type = 'lowpass';
+    windFilter.frequency.setValueAtTime(280, audioCtx.currentTime);
+
+    const windLFO = audioCtx.createOscillator();
+    windLFO.frequency.setValueAtTime(0.08, audioCtx.currentTime);
+    const windLFOGain = audioCtx.createGain();
+    windLFOGain.gain.setValueAtTime(120, audioCtx.currentTime);
+    windLFO.connect(windLFOGain);
+    windLFOGain.connect(windFilter.frequency);
+
+    const windAmpGain = audioCtx.createGain();
+    windAmpGain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+
+    windSource.connect(windFilter);
+    windFilter.connect(windAmpGain);
+    windAmpGain.connect(masterGain);
+    windSource.start();
+    windLFO.start();
+
+  } catch (err) {
+    console.error('Audio initialization error:', err);
   }
-
-  // Wave swell layer
-  const swellNoise = audioCtx.createBufferSource();
-  swellNoise.buffer = noiseBuffer;
-  swellNoise.loop = true;
-
-  const swellFilter = audioCtx.createBiquadFilter();
-  swellFilter.type = 'lowpass';
-  swellFilter.frequency.setValueAtTime(260, audioCtx.currentTime);
-
-  const swellLFO = audioCtx.createOscillator();
-  swellLFO.frequency.setValueAtTime(0.2, audioCtx.currentTime);
-  const swellLFOGain = audioCtx.createGain();
-  swellLFOGain.gain.setValueAtTime(140, audioCtx.currentTime);
-  swellLFO.connect(swellLFOGain);
-  swellLFOGain.connect(swellFilter.frequency);
-
-  swellNoise.connect(swellFilter);
-  swellFilter.connect(masterGain);
-  swellNoise.start();
-  swellLFO.start();
-
-  // Hull wash splash layer
-  const washNoise = audioCtx.createBufferSource();
-  washNoise.buffer = noiseBuffer;
-  washNoise.loop = true;
-
-  const washFilter = audioCtx.createBiquadFilter();
-  washFilter.type = 'bandpass';
-  washFilter.frequency.setValueAtTime(550, audioCtx.currentTime);
-  washFilter.Q.setValueAtTime(1.6, audioCtx.currentTime);
-
-  const washLFO = audioCtx.createOscillator();
-  washLFO.frequency.setValueAtTime(0.32, audioCtx.currentTime);
-  const washLFOGain = audioCtx.createGain();
-  washLFOGain.gain.setValueAtTime(240, audioCtx.currentTime);
-  washLFO.connect(washLFOGain);
-  washLFOGain.connect(washFilter.frequency);
-
-  const washGain = audioCtx.createGain();
-  washGain.gain.setValueAtTime(0.35, audioCtx.currentTime);
-
-  washNoise.connect(washFilter);
-  washFilter.connect(washGain);
-  washGain.connect(masterGain);
-  washNoise.start();
-  washLFO.start();
 }
 
-// Global user interaction listener
-['pointerdown', 'touchstart', 'mousedown', 'keydown'].forEach(evt => {
-  window.addEventListener(evt, () => {
-    initAudio();
-  }, { once: true });
+// Bind directly to canvas and window to guarantee unlock across all mobile & desktop browsers
+const activationEvents = ['pointerdown', 'touchstart', 'mousedown', 'click'];
+activationEvents.forEach(evt => {
+  window.addEventListener(evt, startOceanSound, { passive: true });
+  canvas.addEventListener(evt, startOceanSound, { passive: true });
 });
