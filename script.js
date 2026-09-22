@@ -1,7 +1,6 @@
 const canvas = document.getElementById('webgl-canvas');
 const scene = new THREE.Scene();
 
-// Sunset oceanic sky and atmospheric haze
 const sunsetSkyColor = 0xff8c42; // Warm sunset orange
 const horizonFogColor = 0xffb787; // Soft sunset peach
 scene.background = new THREE.Color(sunsetSkyColor);
@@ -32,7 +31,7 @@ const hemiLight = new THREE.HemisphereLight(0xffd1b3, 0x4a7c59, 1.0);
 scene.add(hemiLight);
 
 const mainSun = new THREE.DirectionalLight(0xff5733, 4.5);
-mainSun.position.set(-60, 15, 30); // Low on the horizon
+mainSun.position.set(-60, 15, 30);
 scene.add(mainSun);
 
 const seaBounceLight = new THREE.DirectionalLight(0x73c9f2, 0.5);
@@ -41,15 +40,15 @@ scene.add(seaBounceLight);
 
 // Sun disc sphere in distant sky
 const sunDiscGeo = new THREE.SphereGeometry(18, 16, 16);
-const sunDiscMat = new THREE.MeshBasicMaterial({ color: 0xffe6b3 }); // glowing yellowish white
+const sunDiscMat = new THREE.MeshBasicMaterial({ color: 0xffe6b3 });
 const sunDisc = new THREE.Mesh(sunDiscGeo, sunDiscMat);
-sunDisc.position.set(-360, 90, 180); // Lower for sunset
+sunDisc.position.set(-360, 90, 180);
 scene.add(sunDisc);
 
 // Soft clouds
 const cloudGroup = new THREE.Group();
 const cloudMat = new THREE.MeshStandardMaterial({
-  color: 0xffb380, // tinted by sunset
+  color: 0xffb380,
   roughness: 0.9,
   metalness: 0.05,
   flatShading: true
@@ -270,22 +269,19 @@ const colorAttribute = oceanGeometry.attributes.color;
 
 // Constant forward movement speed
 const sailingSpeed = 3.6;
-let globalDistance = 0; // Tracks the boat's "travel" distance
+let globalDistance = 0;
 
 function animate() {
   requestAnimationFrame(animate);
   const delta = clock.getDelta();
   const time = clock.getElapsedTime();
   
-  // Continuously advance global distance to create the illusion of endless sailing
   globalDistance += sailingSpeed * delta;
 
-  // The boat stays stationary in the world center while the ocean surface scrolls underneath it
   for (let i = 0; i < posAttr.count; i++) {
     const ox = origCoords[i * 3 + 0];
     const oz = origCoords[i * 3 + 2];
     
-    // We add globalDistance to ox to sample the waves further ahead
     const h = getWaterHeight(ox + globalDistance, oz, time);
     posAttr.setY(i, h);
 
@@ -309,9 +305,8 @@ function animate() {
   oceanGeometry.computeVertexNormals();
   posAttr.needsUpdate = true;
 
-  // Boat is mostly stationary, but bobs with the waves at (0, 0)
   const boatX = 0;
-  const boatZ = Math.sin(time * 0.5) * 1.5; // slight gentle swaying side-to-side
+  const boatZ = Math.sin(time * 0.5) * 1.5;
   boatGroup.position.x = boatX;
   boatGroup.position.z = boatZ;
 
@@ -341,16 +336,12 @@ function animate() {
     p.life += delta * 0.62;
     if (p.life > 1.0) {
       p.life = 0;
-      // Spawn at the back of the boat
       p.x = boatX - 5.8;
       p.z = boatZ;
       p.mesh.position.set(p.x, centerH, p.z);
       p.mesh.scale.set(0.6, 0.6, 0.6);
     } else {
-      // Move wake backwards relative to boat speed
       p.x -= sailingSpeed * delta;
-      
-      // Sample water height taking into account the global offset
       const wH = getWaterHeight(p.x + globalDistance, p.z, time);
       p.mesh.position.y = wH + 0.03;
       p.mesh.position.x = p.x;
@@ -370,7 +361,6 @@ function animate() {
       sp.vz = (Math.random() - 0.5) * 3.2;
     } else {
       sp.vy -= 9.8 * delta;
-      // move backwards relatively because the boat is moving forward
       sp.mesh.position.x += (sp.vx - sailingSpeed) * delta;
       sp.mesh.position.y += sp.vy * delta;
       sp.mesh.position.z += sp.vz * delta;
@@ -392,42 +382,184 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-const notifyForm = document.getElementById('notify-form');
-const notifyToast = document.getElementById('notify-toast');
-const notifyEmail = document.getElementById('notify-email');
-
-notifyForm.addEventListener('submit', (e) => {
-  e.preventDefault();
-  if (!notifyEmail.value) return;
-  notifyToast.classList.remove('hidden');
-  notifyEmail.value = '';
-  setTimeout(() => {
-    notifyToast.classList.add('hidden');
-  }, 4000);
-});
-
-// Realistic Audio
-let oceanAudio = null;
+// =========================================================================
+// 🌊 MULTI-LAYER REALISTIC OCEAN ACOUSTICS ENGINE (WEB AUDIO API + MP3)
+// =========================================================================
 let isPlayingAudio = false;
+let audioUnlocked = false;
 const soundBtn = document.getElementById('sound-btn');
 const soundLabel = document.getElementById('sound-label');
 
-function toggleDaytimeSeaAudio() {
-  if (!oceanAudio) {
-    oceanAudio = new Audio('https://cdn.pixabay.com/download/audio/2022/01/18/audio_03d2192135.mp3');
-    oceanAudio.loop = true;
-    oceanAudio.volume = 0.5;
+const oceanAudio = new Audio('ocean.mp3');
+oceanAudio.loop = true;
+oceanAudio.volume = 0.65;
+
+let webAudioCtx = null;
+let masterOceanGain = null;
+
+function setupMultiLayerOceanEngine() {
+  if (webAudioCtx) return;
+  const AudioCtx = window.AudioContext || window.webkitAudioContext;
+  webAudioCtx = new AudioCtx();
+
+  masterOceanGain = webAudioCtx.createGain();
+  masterOceanGain.gain.setValueAtTime(0.0001, webAudioCtx.currentTime);
+  masterOceanGain.connect(webAudioCtx.destination);
+
+  // Generate 5-second High-Precision Pink Noise Buffer
+  const bufferLen = webAudioCtx.sampleRate * 5;
+  const pinkBuffer = webAudioCtx.createBuffer(2, bufferLen, webAudioCtx.sampleRate);
+  for (let channel = 0; channel < 2; channel++) {
+    const data = pinkBuffer.getChannelData(channel);
+    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+    for (let i = 0; i < bufferLen; i++) {
+      const white = Math.random() * 2 - 1;
+      b0 = 0.99886 * b0 + white * 0.0555179;
+      b1 = 0.99332 * b1 + white * 0.0750759;
+      b2 = 0.96900 * b2 + white * 0.1538520;
+      b3 = 0.86650 * b3 + white * 0.3104856;
+      b4 = 0.55000 * b4 + white * 0.5329522;
+      b5 = -0.76160 * b5 - white * 0.0168980;
+      data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.038;
+      b6 = white * 0.115926;
+    }
   }
-  if (!isPlayingAudio) {
-    oceanAudio.play().catch(e => console.log('Audio play failed:', e));
+
+  // --- LAYER 1: Deep Ocean Swell (Sub-bass rumble) ---
+  const swellSource = webAudioCtx.createBufferSource();
+  swellSource.buffer = pinkBuffer;
+  swellSource.loop = true;
+
+  const swellFilter = webAudioCtx.createBiquadFilter();
+  swellFilter.type = 'lowpass';
+  swellFilter.frequency.setValueAtTime(160, webAudioCtx.currentTime);
+  swellFilter.Q.setValueAtTime(4.2, webAudioCtx.currentTime);
+
+  const swellLFO = webAudioCtx.createOscillator();
+  swellLFO.frequency.setValueAtTime(0.18, webAudioCtx.currentTime); // 5.5s wave swell cycle
+  const swellLFOGain = webAudioCtx.createGain();
+  swellLFOGain.gain.setValueAtTime(90, webAudioCtx.currentTime);
+  swellLFO.connect(swellLFOGain);
+  swellLFOGain.connect(swellFilter.frequency);
+
+  swellSource.connect(swellFilter);
+  swellFilter.connect(masterOceanGain);
+  swellSource.start();
+  swellLFO.start();
+
+  // --- LAYER 2: Breaking Crests & Hull Wash (Mid/High splash) ---
+  const washSource = webAudioCtx.createBufferSource();
+  washSource.buffer = pinkBuffer;
+  washSource.loop = true;
+
+  const washFilter = webAudioCtx.createBiquadFilter();
+  washFilter.type = 'bandpass';
+  washFilter.frequency.setValueAtTime(650, webAudioCtx.currentTime);
+  washFilter.Q.setValueAtTime(1.8, webAudioCtx.currentTime);
+
+  const washLFO = webAudioCtx.createOscillator();
+  washLFO.frequency.setValueAtTime(0.35, webAudioCtx.currentTime);
+  const washLFOGain = webAudioCtx.createGain();
+  washLFOGain.gain.setValueAtTime(320, webAudioCtx.currentTime);
+  washLFO.connect(washLFOGain);
+  washLFOGain.connect(washFilter.frequency);
+
+  const washAmpGain = webAudioCtx.createGain();
+  washAmpGain.gain.setValueAtTime(0.45, webAudioCtx.currentTime);
+
+  washSource.connect(washFilter);
+  washFilter.connect(washAmpGain);
+  washAmpGain.connect(masterOceanGain);
+  washSource.start();
+  washLFO.start();
+
+  // --- LAYER 3: Distant Sea Wind & Atmospheric Air ---
+  const windSource = webAudioCtx.createBufferSource();
+  windSource.buffer = pinkBuffer;
+  windSource.loop = true;
+
+  const windFilter = webAudioCtx.createBiquadFilter();
+  windFilter.type = 'lowpass';
+  windFilter.frequency.setValueAtTime(280, webAudioCtx.currentTime);
+
+  const windLFO = webAudioCtx.createOscillator();
+  windLFO.frequency.setValueAtTime(0.08, webAudioCtx.currentTime); // Slow 12s air drift
+  const windLFOGain = webAudioCtx.createGain();
+  windLFOGain.gain.setValueAtTime(120, webAudioCtx.currentTime);
+  windLFO.connect(windLFOGain);
+  windLFOGain.connect(windFilter.frequency);
+
+  const windAmpGain = webAudioCtx.createGain();
+  windAmpGain.gain.setValueAtTime(0.35, webAudioCtx.currentTime);
+
+  windSource.connect(windFilter);
+  windFilter.connect(windAmpGain);
+  windAmpGain.connect(masterOceanGain);
+  windSource.start();
+  windLFO.start();
+}
+
+function startAudio() {
+  audioUnlocked = true;
+  setupMultiLayerOceanEngine();
+  if (webAudioCtx && webAudioCtx.state === 'suspended') {
+    webAudioCtx.resume();
+  }
+
+  // Check if external ocean.mp3 is available, else fade in procedural layers
+  oceanAudio.play().then(() => {
     isPlayingAudio = true;
-    soundLabel.textContent = 'Mute';
-    soundBtn.classList.add('bg-white/90');
-  } else {
-    oceanAudio.pause();
-    isPlayingAudio = false;
-    soundLabel.textContent = 'Sound';
-    soundBtn.classList.remove('bg-white/90');
+    updateSoundUI(true);
+  }).catch(() => {
+    if (masterOceanGain) {
+      masterOceanGain.gain.cancelScheduledValues(webAudioCtx.currentTime);
+      masterOceanGain.gain.linearRampToValueAtTime(0.85, webAudioCtx.currentTime + 1.5);
+    }
+    isPlayingAudio = true;
+    updateSoundUI(true);
+  });
+}
+
+function stopAudio() {
+  oceanAudio.pause();
+  if (masterOceanGain && webAudioCtx) {
+    masterOceanGain.gain.cancelScheduledValues(webAudioCtx.currentTime);
+    masterOceanGain.gain.linearRampToValueAtTime(0.0001, webAudioCtx.currentTime + 0.8);
+  }
+  isPlayingAudio = false;
+  updateSoundUI(false);
+}
+
+function updateSoundUI(playing) {
+  if (soundLabel) soundLabel.textContent = playing ? 'Mute' : 'Sound';
+  if (soundBtn) {
+    if (playing) {
+      soundBtn.classList.add('bg-white/90', 'shadow-md');
+    } else {
+      soundBtn.classList.remove('bg-white/90', 'shadow-md');
+    }
   }
 }
-soundBtn.addEventListener('click', toggleDaytimeSeaAudio);
+
+function toggleAudio() {
+  if (!isPlayingAudio) {
+    startAudio();
+  } else {
+    stopAudio();
+  }
+}
+
+if (soundBtn) {
+  soundBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleAudio();
+  });
+}
+
+// Unlocks sound immediately when user drags the 3D scene or clicks anywhere
+window.addEventListener('pointerdown', function onFirstPointer() {
+  if (!audioUnlocked) {
+    startAudio();
+  }
+  window.removeEventListener('pointerdown', onFirstPointer);
+}, { once: true });
