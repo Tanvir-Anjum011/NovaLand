@@ -1,8 +1,8 @@
 const canvas = document.getElementById('webgl-canvas');
 const scene = new THREE.Scene();
 
-const sunsetSkyColor = 0xff8c42; // Warm sunset orange
-const horizonFogColor = 0xffb787; // Soft sunset peach
+const sunsetSkyColor = 0xff8c42;
+const horizonFogColor = 0xffb787;
 scene.background = new THREE.Color(sunsetSkyColor);
 scene.fog = new THREE.FogExp2(horizonFogColor, 0.0075);
 
@@ -38,14 +38,12 @@ const seaBounceLight = new THREE.DirectionalLight(0x73c9f2, 0.5);
 seaBounceLight.position.set(40, -10, -25);
 scene.add(seaBounceLight);
 
-// Sun disc sphere in distant sky
 const sunDiscGeo = new THREE.SphereGeometry(18, 16, 16);
 const sunDiscMat = new THREE.MeshBasicMaterial({ color: 0xffe6b3 });
 const sunDisc = new THREE.Mesh(sunDiscGeo, sunDiscMat);
 sunDisc.position.set(-360, 90, 180);
 scene.add(sunDisc);
 
-// Soft clouds
 const cloudGroup = new THREE.Group();
 const cloudMat = new THREE.MeshStandardMaterial({
   color: 0xffb380,
@@ -94,7 +92,6 @@ const vertexCount = oceanGeometry.attributes.position.count;
 const oceanColors = new Float32Array(vertexCount * 3);
 oceanGeometry.setAttribute('color', new THREE.BufferAttribute(oceanColors, 3));
 
-// Realistic Water Material
 const oceanMaterial = new THREE.MeshPhysicalMaterial({
   color: 0x004466,
   emissive: 0x001122,
@@ -160,7 +157,6 @@ function createDaytimeBannerTexture() {
 const boatGroup = new THREE.Group();
 scene.add(boatGroup);
 
-// Yacht Materials
 const hullMat = new THREE.MeshStandardMaterial({ color: 0x092b4c, metalness: 0.65, roughness: 0.25, flatShading: true });
 const waterlineMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25 });
 const teakDeckMat = new THREE.MeshStandardMaterial({ color: 0xb57843, roughness: 0.55, metalness: 0.05 });
@@ -168,7 +164,6 @@ const cabinMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.
 const windowGlassMat = new THREE.MeshStandardMaterial({ color: 0x1b4b6b, roughness: 0.08, metalness: 0.95 });
 const stainlessSteelMat = new THREE.MeshStandardMaterial({ color: 0xe6eef5, metalness: 0.95, roughness: 0.12 });
 
-// Yacht components
 const hullGeo = new THREE.ConeGeometry(3.2, 11.5, 6);
 hullGeo.rotateZ(-Math.PI / 2);
 hullGeo.rotateX(Math.PI / 6);
@@ -269,7 +264,6 @@ const clock = new THREE.Clock();
 const flagPos = flagGeo.attributes.position;
 const colorAttribute = oceanGeometry.attributes.color;
 
-// Constant forward movement speed
 const sailingSpeed = 3.6;
 let globalDistance = 0;
 
@@ -385,9 +379,6 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// =========================================================================
-// 🌊 MULTI-LAYER REALISTIC OCEAN ACOUSTICS ENGINE (WEB AUDIO API + MP3)
-// =========================================================================
 let isPlayingAudio = false;
 let audioUnlocked = false;
 const soundBtn = document.getElementById('sound-btn');
@@ -409,7 +400,6 @@ function setupMultiLayerOceanEngine() {
   masterOceanGain.gain.setValueAtTime(0.0001, webAudioCtx.currentTime);
   masterOceanGain.connect(webAudioCtx.destination);
 
-  // Generate 5-second High-Precision Pink Noise Buffer
   const bufferLen = webAudioCtx.sampleRate * 5;
   const pinkBuffer = webAudioCtx.createBuffer(2, bufferLen, webAudioCtx.sampleRate);
   for (let channel = 0; channel < 2; channel++) {
@@ -428,7 +418,6 @@ function setupMultiLayerOceanEngine() {
     }
   }
 
-  // --- LAYER 1: Deep Ocean Swell (Sub-bass rumble) ---
   const swellSource = webAudioCtx.createBufferSource();
   swellSource.buffer = pinkBuffer;
   swellSource.loop = true;
@@ -439,7 +428,7 @@ function setupMultiLayerOceanEngine() {
   swellFilter.Q.setValueAtTime(4.2, webAudioCtx.currentTime);
 
   const swellLFO = webAudioCtx.createOscillator();
-  swellLFO.frequency.setValueAtTime(0.18, webAudioCtx.currentTime); // 5.5s wave swell cycle
+  swellLFO.frequency.setValueAtTime(0.18, webAudioCtx.currentTime);
   const swellLFOGain = webAudioCtx.createGain();
   swellLFOGain.gain.setValueAtTime(90, webAudioCtx.currentTime);
   swellLFO.connect(swellLFOGain);
@@ -450,7 +439,6 @@ function setupMultiLayerOceanEngine() {
   swellSource.start();
   swellLFO.start();
 
-  // --- LAYER 2: Breaking Crests & Hull Wash (Mid/High splash) ---
   const washSource = webAudioCtx.createBufferSource();
   washSource.buffer = pinkBuffer;
   washSource.loop = true;
@@ -476,7 +464,6 @@ function setupMultiLayerOceanEngine() {
   washSource.start();
   washLFO.start();
 
-  // --- LAYER 3: Distant Sea Wind & Atmospheric Air ---
   const windSource = webAudioCtx.createBufferSource();
   windSource.buffer = pinkBuffer;
   windSource.loop = true;
@@ -486,7 +473,7 @@ function setupMultiLayerOceanEngine() {
   windFilter.frequency.setValueAtTime(280, webAudioCtx.currentTime);
 
   const windLFO = webAudioCtx.createOscillator();
-  windLFO.frequency.setValueAtTime(0.08, webAudioCtx.currentTime); // Slow 12s air drift
+  windLFO.frequency.setValueAtTime(0.08, webAudioCtx.currentTime);
   const windLFOGain = webAudioCtx.createGain();
   windLFOGain.gain.setValueAtTime(120, webAudioCtx.currentTime);
   windLFO.connect(windLFOGain);
@@ -509,7 +496,6 @@ function startAudio() {
     webAudioCtx.resume();
   }
 
-  // Check if external ocean.mp3 is available, else fade in procedural layers
   oceanAudio.play().then(() => {
     isPlayingAudio = true;
     updateSoundUI(true);
@@ -559,7 +545,6 @@ if (soundBtn) {
   });
 }
 
-// Unlocks sound immediately when user drags the 3D scene or clicks anywhere
 window.addEventListener('pointerdown', function onFirstPointer() {
   if (!audioUnlocked) {
     startAudio();
