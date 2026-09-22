@@ -370,7 +370,6 @@ function animate() {
 
 window.onload = function() {
   animate();
-  startAudio();
 };
 
 window.addEventListener('resize', () => {
@@ -380,136 +379,96 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-let isPlayingAudio = false;
-let audioUnlocked = false;
+// =========================================================================
+// 🌊 ULTRA-RELIABLE MARITIME SOUND ENGINE
+// =========================================================================
+let audioStarted = false;
+let audioCtx = null;
 
-const oceanAudio = new Audio('ocean.mp3');
-oceanAudio.loop = true;
-oceanAudio.volume = 0.65;
+function initAudio() {
+  if (audioStarted) return;
+  audioStarted = true;
 
-let webAudioCtx = null;
-let masterOceanGain = null;
-
-function setupMultiLayerOceanEngine() {
-  if (webAudioCtx) return;
   const AudioCtx = window.AudioContext || window.webkitAudioContext;
-  webAudioCtx = new AudioCtx();
+  audioCtx = new AudioCtx();
 
-  masterOceanGain = webAudioCtx.createGain();
-  masterOceanGain.gain.setValueAtTime(0.0001, webAudioCtx.currentTime);
-  masterOceanGain.connect(webAudioCtx.destination);
-
-  const bufferLen = webAudioCtx.sampleRate * 5;
-  const pinkBuffer = webAudioCtx.createBuffer(2, bufferLen, webAudioCtx.sampleRate);
-  for (let channel = 0; channel < 2; channel++) {
-    const data = pinkBuffer.getChannelData(channel);
-    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
-    for (let i = 0; i < bufferLen; i++) {
-      const white = Math.random() * 2 - 1;
-      b0 = 0.99886 * b0 + white * 0.0555179;
-      b1 = 0.99332 * b1 + white * 0.0750759;
-      b2 = 0.96900 * b2 + white * 0.1538520;
-      b3 = 0.86650 * b3 + white * 0.3104856;
-      b4 = 0.55000 * b4 + white * 0.5329522;
-      b5 = -0.76160 * b5 - white * 0.0168980;
-      data[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.038;
-      b6 = white * 0.115926;
-    }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
   }
 
-  const swellSource = webAudioCtx.createBufferSource();
-  swellSource.buffer = pinkBuffer;
-  swellSource.loop = true;
+  const masterGain = audioCtx.createGain();
+  masterGain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+  masterGain.gain.exponentialRampToValueAtTime(0.8, audioCtx.currentTime + 2.0);
+  masterGain.connect(audioCtx.destination);
 
-  const swellFilter = webAudioCtx.createBiquadFilter();
+  // Generate pink noise
+  const bufferSize = audioCtx.sampleRate * 4;
+  const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const output = noiseBuffer.getChannelData(0);
+  let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+  for (let i = 0; i < bufferSize; i++) {
+    const white = Math.random() * 2 - 1;
+    b0 = 0.99886 * b0 + white * 0.0555179;
+    b1 = 0.99332 * b1 + white * 0.0750759;
+    b2 = 0.96900 * b2 + white * 0.1538520;
+    b3 = 0.86650 * b3 + white * 0.3104856;
+    b4 = 0.55000 * b4 + white * 0.5329522;
+    b5 = -0.76160 * b5 - white * 0.0168980;
+    output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.045;
+    b6 = white * 0.115926;
+  }
+
+  // Wave swell layer
+  const swellNoise = audioCtx.createBufferSource();
+  swellNoise.buffer = noiseBuffer;
+  swellNoise.loop = true;
+
+  const swellFilter = audioCtx.createBiquadFilter();
   swellFilter.type = 'lowpass';
-  swellFilter.frequency.setValueAtTime(160, webAudioCtx.currentTime);
-  swellFilter.Q.setValueAtTime(4.2, webAudioCtx.currentTime);
+  swellFilter.frequency.setValueAtTime(260, audioCtx.currentTime);
 
-  const swellLFO = webAudioCtx.createOscillator();
-  swellLFO.frequency.setValueAtTime(0.18, webAudioCtx.currentTime);
-  const swellLFOGain = webAudioCtx.createGain();
-  swellLFOGain.gain.setValueAtTime(90, webAudioCtx.currentTime);
+  const swellLFO = audioCtx.createOscillator();
+  swellLFO.frequency.setValueAtTime(0.2, audioCtx.currentTime);
+  const swellLFOGain = audioCtx.createGain();
+  swellLFOGain.gain.setValueAtTime(140, audioCtx.currentTime);
   swellLFO.connect(swellLFOGain);
   swellLFOGain.connect(swellFilter.frequency);
 
-  swellSource.connect(swellFilter);
-  swellFilter.connect(masterOceanGain);
-  swellSource.start();
+  swellNoise.connect(swellFilter);
+  swellFilter.connect(masterGain);
+  swellNoise.start();
   swellLFO.start();
 
-  const washSource = webAudioCtx.createBufferSource();
-  washSource.buffer = pinkBuffer;
-  washSource.loop = true;
+  // Hull wash splash layer
+  const washNoise = audioCtx.createBufferSource();
+  washNoise.buffer = noiseBuffer;
+  washNoise.loop = true;
 
-  const washFilter = webAudioCtx.createBiquadFilter();
+  const washFilter = audioCtx.createBiquadFilter();
   washFilter.type = 'bandpass';
-  washFilter.frequency.setValueAtTime(650, webAudioCtx.currentTime);
-  washFilter.Q.setValueAtTime(1.8, webAudioCtx.currentTime);
+  washFilter.frequency.setValueAtTime(550, audioCtx.currentTime);
+  washFilter.Q.setValueAtTime(1.6, audioCtx.currentTime);
 
-  const washLFO = webAudioCtx.createOscillator();
-  washLFO.frequency.setValueAtTime(0.35, webAudioCtx.currentTime);
-  const washLFOGain = webAudioCtx.createGain();
-  washLFOGain.gain.setValueAtTime(320, webAudioCtx.currentTime);
+  const washLFO = audioCtx.createOscillator();
+  washLFO.frequency.setValueAtTime(0.32, audioCtx.currentTime);
+  const washLFOGain = audioCtx.createGain();
+  washLFOGain.gain.setValueAtTime(240, audioCtx.currentTime);
   washLFO.connect(washLFOGain);
   washLFOGain.connect(washFilter.frequency);
 
-  const washAmpGain = webAudioCtx.createGain();
-  washAmpGain.gain.setValueAtTime(0.45, webAudioCtx.currentTime);
+  const washGain = audioCtx.createGain();
+  washGain.gain.setValueAtTime(0.35, audioCtx.currentTime);
 
-  washSource.connect(washFilter);
-  washFilter.connect(washAmpGain);
-  washAmpGain.connect(masterOceanGain);
-  washSource.start();
+  washNoise.connect(washFilter);
+  washFilter.connect(washGain);
+  washGain.connect(masterGain);
+  washNoise.start();
   washLFO.start();
-
-  const windSource = webAudioCtx.createBufferSource();
-  windSource.buffer = pinkBuffer;
-  windSource.loop = true;
-
-  const windFilter = webAudioCtx.createBiquadFilter();
-  windFilter.type = 'lowpass';
-  windFilter.frequency.setValueAtTime(280, webAudioCtx.currentTime);
-
-  const windLFO = webAudioCtx.createOscillator();
-  windLFO.frequency.setValueAtTime(0.08, webAudioCtx.currentTime);
-  const windLFOGain = webAudioCtx.createGain();
-  windLFOGain.gain.setValueAtTime(120, webAudioCtx.currentTime);
-  windLFO.connect(windLFOGain);
-  windLFOGain.connect(windFilter.frequency);
-
-  const windAmpGain = webAudioCtx.createGain();
-  windAmpGain.gain.setValueAtTime(0.35, webAudioCtx.currentTime);
-
-  windSource.connect(windFilter);
-  windFilter.connect(windAmpGain);
-  windAmpGain.connect(masterOceanGain);
-  windSource.start();
-  windLFO.start();
 }
 
-function startAudio() {
-  audioUnlocked = true;
-  setupMultiLayerOceanEngine();
-  if (webAudioCtx && webAudioCtx.state === 'suspended') {
-    webAudioCtx.resume();
-  }
-
-  oceanAudio.play().then(() => {
-    isPlayingAudio = true;
-  }).catch(() => {
-    if (masterOceanGain) {
-      masterOceanGain.gain.cancelScheduledValues(webAudioCtx.currentTime);
-      masterOceanGain.gain.linearRampToValueAtTime(0.85, webAudioCtx.currentTime + 1.5);
-    }
-    isPlayingAudio = true;
-  });
-}
-
-
-window.addEventListener('pointerdown', function onFirstPointer() {
-  if (!audioUnlocked) {
-    startAudio();
-  }
-  window.removeEventListener('pointerdown', onFirstPointer);
-}, { once: true });
+// Global user interaction listener
+['pointerdown', 'touchstart', 'mousedown', 'keydown'].forEach(evt => {
+  window.addEventListener(evt, () => {
+    initAudio();
+  }, { once: true });
+});
