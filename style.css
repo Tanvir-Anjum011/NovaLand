@@ -1,64 +1,113 @@
-* {
-      user-select: none;
-      -webkit-user-select: none;
-      box-sizing: border-box;
-    }
-    body, html {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100vh;
-      height: 100dvh;
-      overflow: hidden;
-      overscroll-behavior: none;
-      background-color: #8ed0f8;
-      color: #0f172a;
-      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-    #webgl-canvas {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      height: 100dvh;
-      touch-action: none;
-      display: block;
-      z-index: 1;
-      cursor: grab;
-    }
-    #webgl-canvas:active {
-      cursor: grabbing;
-    }
-    .hud-layer {
-      position: fixed;
-      inset: 0;
-      z-index: 20;
-      pointer-events: none;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      padding: 1rem;
-    }
-    @media (min-width: 768px) {
-      .hud-layer {
-        padding: 1.75rem 2.25rem;
-      }
-    }
-    .hud-interactive {
-      pointer-events: auto;
-    }
-    .day-glass-card {
-      background: rgba(255, 255, 255, 0.45);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.65);
-      box-shadow: 0 10px 30px -5px rgba(12, 74, 110, 0.15), 0 4px 12px rgba(255, 255, 255, 0.5) inset;
-    }
-    .brand-title {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      font-weight: 800;
-      letter-spacing: 0.28em;
-      color: #0b2545;
-      text-shadow: 0 1px 3px rgba(255, 255, 255, 0.7);
-    }
+:root {
+  --color-bg-fallback: #ff8c42;
+  --color-text-primary: #0f172a;
+  --color-brand: #0b2545;
+  --color-brand-shadow: rgba(255, 255, 255, 0.7);
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --z-canvas: 1;
+  --z-hud: 20;
+  --z-noscript: 50;
+}
+
+*,
+*::before,
+*::after {
+  user-select: none;
+  -webkit-user-select: none;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background-color: var(--color-bg-fallback);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#webgl-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  touch-action: none;
+  display: block;
+  z-index: var(--z-canvas);
+  cursor: grab;
+}
+
+#webgl-canvas:active {
+  cursor: grabbing;
+}
+
+.hud-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-hud);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1rem;
+}
+
+@media (min-width: 768px) {
+  .hud-layer {
+    padding: 1.75rem 2.25rem;
+  }
+}
+
+.hud-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hud-interactive {
+  pointer-events: auto;
+}
+
+.brand-title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  letter-spacing: 0.28em;
+  color: var(--color-brand);
+  text-shadow: 0 1px 3px var(--color-brand-shadow);
+}
+
+@media (min-width: 768px) {
+  .brand-title {
+    font-size: 1.25rem;
+    line-height: 1.75rem;
+  }
+}
+
+.noscript-banner {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-noscript);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: var(--color-brand);
+  background-color: var(--color-bg-fallback);
+}
